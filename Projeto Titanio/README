@@ -1,0 +1,81 @@
+⚡ Project Titanio - Update em Massa (update_em_massa.py)
+
+==========================================================
+update_em_massa.py is a script designed to convert a CSV
+file into a single, optimized SQL UPDATE statement using
+a VALUES table and JOIN. This allows batch updates in a
+single transaction, improving performance for large datasets.
+==========================================================
+
+📁 Script Overview
+------------------
+Input: CSV file with headers; columns include document ID and bank number.
+Output: A single SQL script (.sql) containing an UPDATE with JOIN on VALUES.
+Purpose: Efficiently update database table fields based on CSV input.
+Database: Designed for databases compatible with SQL Server syntax.
+
+🛠️ Usage
+---------
+1. Place your CSV file in the same folder as the script or provide the full path.
+2. Configure the following in the script:
+   - arquivo_csv → input CSV file name
+   - arquivo_saida → output SQL file name
+   - nome_tabela → target database table
+   - coluna_sql_documento → document column in SQL table
+   - coluna_sql_bancario → column to update in SQL table
+3. Run the script:
+
+   python update_em_massa.py
+
+4. The script will generate a single optimized .sql file ready to execute.
+
+⚙️ Requirements
+----------------
+- Python 3.x
+- CSV file must be UTF-8 encoded
+- Compatible SQL Server database
+- (Optional) pyodbc if you plan to execute the SQL from Python
+
+Notes:
+- Make sure the CSV headers and table column names match exactly.
+
+📌 Important Notes
+------------------
+- The script creates a single UPDATE with JOIN, not multiple separate UPDATEs.
+- Always backup your database before executing the generated SQL.
+- Supports semicolon-separated CSV files (;) and skips the header row.
+- Logs the total number of records processed to the console.
+
+📝 Example
+----------
+CSV input (dados.csv):
+
+DCTO;Name;Other;numero_port
+12345;John;...;987654
+23456;Mary;...;123456
+34567;Peter;...;654321
+
+Generated SQL output (update_em_massa.sql):
+
+-- Script gerado automaticamente
+-- Total de registros: 3
+
+BEGIN TRANSACTION;
+
+UPDATE t
+SET t.numero_port = v.numero_port
+FROM SIGFLU t
+JOIN (
+('12345', '987654'),
+('23456', '123456'),
+('34567', '654321')
+) AS v(DCTO, numero_port)
+ON t.DCTO = v.DCTO;
+
+COMMIT;
+
+📜 License
+------------
+MIT License
+
+✅ Script optimized and ready to execute!
