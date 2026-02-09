@@ -5,6 +5,9 @@ update_em_massa.py is a script designed to convert a CSV
 file into a single, optimized SQL UPDATE statement using
 a VALUES table and JOIN. This allows batch updates in a
 single transaction, improving performance for large datasets.
+
+Additionally, the script now **ignores records without a
+bank number** and reports them at the end.
 ==========================================================
 
 📁 Script Overview
@@ -12,6 +15,9 @@ single transaction, improving performance for large datasets.
 Input: CSV file with headers; columns include document ID and bank number.
 Output: A single SQL script (.sql) containing an UPDATE with JOIN on VALUES.
 Purpose: Efficiently update database table fields based on CSV input.
+Behavior:
+- Lines without a bank number (fourth column) are ignored.
+- At the end, the script prints a report of ignored records.
 Database: Designed for databases compatible with SQL Server syntax.
 
 🛠️ Usage
@@ -28,6 +34,9 @@ Database: Designed for databases compatible with SQL Server syntax.
    python update_em_massa.py
 
 4. The script will generate a single optimized .sql file ready to execute.
+5. At the end, the script will display:
+   - Total processed records
+   - Records ignored due to missing bank number
 
 ⚙️ Requirements
 ----------------
@@ -44,7 +53,7 @@ Notes:
 - The script creates a single UPDATE with JOIN, not multiple separate UPDATEs.
 - Always backup your database before executing the generated SQL.
 - Supports semicolon-separated CSV files (;) and skips the header row.
-- Logs the total number of records processed to the console.
+- Logs the total number of records processed and ignored to the console.
 
 📝 Example
 ----------
@@ -53,12 +62,12 @@ CSV input (dados.csv):
 DCTO;Name;Other;numero_port
 12345;John;...;987654
 23456;Mary;...;123456
-34567;Peter;...;654321
+34567;Peter;...;
 
 Generated SQL output (update_em_massa.sql):
 
 -- Script gerado automaticamente
--- Total de registros: 3
+-- Total de registros processados: 2
 
 BEGIN TRANSACTION;
 
@@ -67,12 +76,17 @@ SET t.numero_port = v.numero_port
 FROM SIGFLU t
 JOIN (
 ('12345', '987654'),
-('23456', '123456'),
-('34567', '654321')
+('23456', '123456')
 ) AS v(DCTO, numero_port)
 ON t.DCTO = v.DCTO;
 
 COMMIT;
+
+Console report:
+
+✅ Script otimizado gerado com 2 registros!
+⚠️ 1 registro foi ignorado (sem número bancário):
+  ['34567', 'Peter', '...', '']
 
 📜 License
 ------------

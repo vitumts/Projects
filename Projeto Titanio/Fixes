@@ -1,0 +1,100 @@
+Projeto Titânio – Script update_em_massa.py – Histórico e Documentação
+
+Versão Inicial
+--------------
+Objetivo: Converter um CSV em um script SQL Server UPDATE.
+Funcionalidade inicial:
+- Ler CSV
+- Gerar SQL do tipo UPDATE ... JOIN ... VALUES(...)
+- Suportar múltiplos registros
+
+Problemas identificados:
+1. Suposição de 4 colunas no CSV → erros se linhas estavam incompletas:
+   IndexError: list index out of range
+   - Motivo: o script acessava linha[3] sem verificar se existia.
+2. Delimitador de CSV variável → alguns arquivos tinham ; ao invés de ,.
+3. Sem reporte de registros ignorados → impossível saber quais dados foram pulados.
+4. SQL ineficiente → utilizava UNION ALL SELECT por linha, muito lento para muitos registros.
+
+Fix 1 – Tratamento de colunas faltantes e registros inválidos
+-----------------------------------------------------------
+- O que foi feito: adicionada verificação se o número bancário existia.
+- Motivo: evitar IndexError e gerar relatório de linhas ignoradas.
+- Código:
+if not banco:
+    ignored.append(linha)
+    continue
+- Resultado: linhas sem número bancário são ignoradas e listadas no final.
+
+Fix 2 – Redução para apenas 2 colunas
+--------------------------------------
+- Motivo: apenas Numerodedocumento e Numerobancario são necessários.
+- Resultado: simplificação do CSV/XLSX e do script.
+
+Fix 3 – Migração de CSV para XLSX
+---------------------------------
+- Motivo: arquivos Excel são mais comuns, suportam cabeçalhos e evitam problemas de delimitadores.
+- Mudança: usar pandas.read_excel() em vez de csv.reader.
+- Problema inicial:
+KeyError: 'Numerodedocumento'
+- Motivo do erro: nomes das colunas tinham espaços ou caracteres especiais.
+- Solução: padronizar os nomes das colunas:
+df.columns = [str(col).strip() for col in df.columns]
+- Resultado: evita erros e garante que todos os DCTOs sejam lidos corretamente.
+
+Fix 4 – Correção de tipos de dados
+----------------------------------
+- Problema: números bancários do Excel lidos como float (11118672.0) → SQL gerava erro.
+- Solução: converter para int e depois para str:
+bank = str(int(float(row['Numerobancario']))).strip()
+- Problema adicional: documentos podem conter caracteres especiais (-, /) → precisam ser escapados para SQL:
+doc = doc.replace("'", "''")
+
+Fix 5 – Geração de SQL mais eficiente
+-------------------------------------
+- Problema anterior: UNION ALL SELECT por linha → scripts lentos.
+- Solução: criar tabela temporária #temp:
+  - Inserir todos os registros válidos de uma vez
+  - UPDATE JOIN com #temp
+- Motivo: melhor performance, SQL mais legível, facilita debug.
+
+Fix 6 – Relatório de DCTOs não encontrados
+------------------------------------------
+- Motivo: alguns DCTOs do Excel podem não existir na tabela SIGFLU.
+- Solução: SELECT ... LEFT JOIN ... WHERE t.DCTO IS NULL
+- Resultado: lista de DCTOs não encontrados sem alterar a tabela.
+
+Fix 7 – Conflito de collation no SQL Server
+-------------------------------------------
+- Erro encontrado:
+Mensagem 468: conflito entre Latin1_General_CI_AS e SQL_Latin1_General_CP1_CI_AS
+- Motivo: collation da tabela SIGFLU diferente do padrão SQL.
+- Solução: padronizar collation no JOIN:
+ON t.DCTO COLLATE SQL_Latin1_General_CP1_CI_AS = temp.DCTO COLLATE SQL_Latin1_General_CP1_CI_AS
+- Resultado: evita erros e garante comparações corretas.
+
+Fix 8 – Relatórios finais
+-------------------------
+- Registros ignorados (banco inválido) → impressos no console.
+- DCTOs não encontrados → impressos em SELECT.
+- Registros válidos atualizados → apenas os que existem na tabela.
+- Motivo: transparência e rastreabilidade.
+
+Resumo da versão atual
+---------------------
+- Lê .xlsx com cabeçalhos Numerodedocumento e Numerobancario
+- Valida número bancário como numérico
+- Escapa caracteres especiais no documento
+- Cria #temp para atualização eficiente
+- Resolve conflito de collation
+- Relatórios claros de registros ignorados e DCTOs não encontrados
+- Compatível com SQL Server
+- Código e saída estilizados para GitHub e Python portátil
+
+Lições aprendidas
+-----------------
+1. Sempre validar a estrutura do CSV/XLSX antes de processar
+2. Converter números do Excel que podem virar float
+3. Conflitos de collation podem quebrar JOINs → usar COLLATE
+4. Evitar SQL ineficiente (UNION ALL para milhares de linhas)
+5. Relatórios de dados ignorados ou não encontrados são essenciais
